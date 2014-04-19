@@ -1,0 +1,14 @@
+
+NuCSV is a simple utility for parsing CSV.
+
+AUTHOR
+
+NuCSV was "compiled" by Tim Burks but the original code was 
+written by Drew MacCormack, posted and released into the 
+public domain here:
+
+http://www.macresearch.org/cocoa-scientists-part-xxvi-parsing-csv-data
+
+NuCSV is released under the Apache License, version 2.0.
+
+Copyright 2010, Neon Design Technology, Inc.

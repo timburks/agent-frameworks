@@ -1,0 +1,16 @@
+;; source files
+(set @m_files     (filelist "^objc/.*.m$"))
+(set @nu_files 	  (filelist "^nu/.*nu$"))
+
+(set @arch (list "x86_64"))
+
+(set @cflags "-g -DDARWIN")
+(set @ldflags "-framework Foundation -framework Nu ")
+
+;; framework description
+(set @framework "AgentCSV")
+(set @framework_identifier "io.agent.csv")
+(set @framework_creator_code "????")
+
+(compilation-tasks)
+(framework-tasks)
