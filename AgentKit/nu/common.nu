@@ -92,7 +92,7 @@
 (macro topbar-for-app (appname additional-items)
        `(progn (set mongo (AgentMongoDB new))
                (mongo connect)
-               (set system-apps (mongo findArray:(dict system:1) inCollection:"control.apps"))
+               (set system-apps (mongo findArray:(dict $query:(dict system:1) $orderby:(dict name:1)) inCollection:"control.apps"))
                (set available-apps (system-apps map:
                                                 (do (app) (dict name:(app name:) path:(+ "/" (app path:))))))
                (set available-apps (available-apps sort))
