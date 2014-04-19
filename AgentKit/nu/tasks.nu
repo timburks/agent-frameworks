@@ -2,36 +2,6 @@
 (load "AgentHTTP")
 (load "AgentCrypto")
 
-(class AgentHTTPClient
-	
- (+ certifyRequest:request withCredentials:credentials is
-    (set authorization (+ "Basic "
-                          ((credentials dataUsingEncoding:NSUTF8StringEncoding)
-                           agent_base64EncodedString)))
-    (request setValue:authorization forHTTPHeaderField:"Authorization"))
- 
- (+ performGet:path withCredentials:credentials is
-    (set request (NSMutableURLRequest requestWithURL:(NSURL URLWithString:path)))
-    (self certifyRequest:request withCredentials:credentials)
-    (AgentHTTPClient performRequest:request))
- 
- (+ performPost:path withData:data credentials:credentials is
-    (set request (NSMutableURLRequest requestWithURL:(NSURL URLWithString:path)))
-    (request setHTTPMethod:"POST")
-    (request setHTTPBody:data)
-    (request setValue:"application/plist" forHTTPHeaderField:"Content-Type")
-    (self certifyRequest:request withCredentials:credentials)
-    (AgentHTTPClient performRequest:request))
- 
- (+ performPost:path withObject:object credentials:credentials is
-    (puts "posting #{(object description)}")
-    (set request (NSMutableURLRequest requestWithURL:(NSURL URLWithString:path)))
-    (request setHTTPMethod:"POST")
-    (request setHTTPBody:(object XMLPropertyListRepresentation))
-    (request setValue:"application/plist" forHTTPHeaderField:"Content-Type")
-    (self certifyRequest:request withCredentials:credentials)
-    (AgentHTTPClient performRequest:request)))
-
 (task "zip" is
       (SH "mkdir -p build/#{(APP name:)}.app")
       (((NSFileManager defaultManager) contentsOfDirectoryAtPath:"." error:nil) each:
@@ -48,35 +18,24 @@
 (task "deploy" => "zip" "list" is
       (set app (APPS find:(do (app) (eq (app name:) (APP name:)))))
       (if app
-          (then
-               ;; upload a new app version
-               (set command (+ "curl -s "
-                               AGENT "/control/apps/" (app _id:)
-                               " -T build/#{(APP name:)}.zip"
-                               " -X POST"
-                               " -u " CREDENTIALS))
-               (puts command)
-               (set results (NSData dataWithShellCommand:command))
-               (set version ((results propertyListValue) version:))
-               
-               (puts "app version: #{version}")
-               (set command (+ "curl -s "
-                               AGENT "/control/apps/" (app _id:) "/" version "/deploy"
-                               " -X POST"
-                               " -u " CREDENTIALS))
-               (set result (NSString stringWithShellCommand:command))
-               (puts "deployment result: #{result}"))
+          (then ;; post the app binary
+                (set result (AgentHTTPClient performPost:(+ AGENT "/control/apps/" (app _id:))
+                                                withData:(NSData dataWithContentsOfFile:"build/#{(APP name:)}.zip")
+                                             credentials:CREDENTIALS))
+                (set version ((result object) version:))
+                (puts "app version: #{version}")
+                ;; trigger the app deployment
+                (set result (AgentHTTPClient performPost:(+ AGENT "/control/apps/" (app _id:) "/" version "/deploy")
+                                                withData:nil
+                                             credentials:CREDENTIALS))
+                (puts "deployment result: #{(result string)}"))
           (else (puts "app not found"))))
 
 (task "pub" => "deploy")
 
 (task "list" is
-      (set command (+ "curl -s "
-                      AGENT "/control/apps"
-                      " -u " CREDENTIALS))
-      (puts command)
-      (set results (NSData dataWithShellCommand:command))
-      (global APPS ((results propertyListValue) apps:))
+      (set result (AgentHTTPClient performGet:(+ AGENT "/control/apps") withCredentials:CREDENTIALS))
+      (global APPS ((result object) apps:))
       (APPS each:
             (do (APP)
                 (puts (+ (APP _id:) " " (APP name:)))))
@@ -86,37 +45,26 @@
 (task "show" => "list" is
       (set app (APPS find:(do (app) (eq (app name:) (APP name:)))))
       (if app
-          (then (set command (+ "curl -s "
-                                AGENT "/control/apps/" (app _id:)
-                                " -X GET"
-                                " -u " CREDENTIALS))
-                (puts command)
-                (set results (NSString stringWithShellCommand:command))
-                (puts "apps: #{(results description)}"))
+          (then (set result (AgentHTTPClient performGet:(+ AGENT "/control/apps/" (app _id:))
+                                        withCredentials:CREDENTIALS))
+                (puts "apps: #{((result object) description)}"))
           (else (puts "App not found"))))
 
 (task "stop" => "list" is
       (set app (APPS find:(do (app) (eq (app name:) (APP name:)))))
       (if app
-          (then (set command (+ "curl -s "
-                                AGENT "/control/apps/" (app _id:) "/stop"
-                                " -X POST"
-                                " -u " CREDENTIALS))
-                (puts command)
-                (set results (NSString stringWithShellCommand:command))
-                (puts "apps: #{(results description)}"))
+          (then (set result (AgentHTTPClient performPost:(+ AGENT "/control/apps/" (app _id:) "/stop")
+                                                withData:nil
+                                             credentials:CREDENTIALS))
+                (puts "apps: #{(result string)}"))
           (else (puts "App not found"))))
 
 (task "delete" => "list" is
       (set app (APPS find:(do (app) (eq (app name:) (APP name:)))))
       (if app
-          (then (set command (+ "curl -s "
-                                AGENT "/control/apps/" (app _id:)
-                                " -X DELETE"
-                                " -u " CREDENTIALS))
-                (puts command)
-                (set results (NSString stringWithShellCommand:command))
-                (puts "apps: #{(results description)}"))
+          (then (set result (AgentHTTPClient performDelete:(+ AGENT "/control/apps/" (app _id:))
+                                           withCredentials:CREDENTIALS))
+                (puts "apps: #{(result string)}"))
           (else (puts "App not found"))))
 
 (task "create" => "list" is
@@ -128,47 +76,32 @@
                 (set result (AgentHTTPClient performPost:(+ AGENT "/control/apps")
                                               withObject:APP
                                              credentials:CREDENTIALS))
-                (puts "apps: #{(result UTF8String)}")
-                (set appid ((result propertyList) appid:)))))
-
+                (puts "apps: #{(result string)}")
+                (set appid ((result object) appid:)))))
 
 (task "restart" is
-      (set command (+ "curl -s "
-                      " -X POST"
-                      " " AGENT "/control/nginx/restart"
-                      " -u " CREDENTIALS))
-      (puts command)
-      (set results (NSString stringWithShellCommand:command))
-      (puts "apps: #{(results description)}"))
+      (set result (AgentHTTPClient performPost:(+ AGENT "/control/nginx/restart")
+                                      withData:nil
+                                   credentials:CREDENTIALS))
+      (puts "result: #{(result string)}"))
 
 (task "nginx" is
-      (set command (+ "curl -s "
-                      " -X GET"
-                      " " AGENT "/control/nginx"
-                      " -u " CREDENTIALS))
-      (puts command)
-      (set results (NSString stringWithShellCommand:command))
-      (puts "apps: #{(results description)}"))
+      (set result (AgentHTTPClient performGet:(+ AGENT "/control/nginx")
+                              withCredentials:CREDENTIALS))
+      (puts "result: #{(result string)}"))
 
 (task "user" is
-      (set command (+ "curl -s "
-                      " -X GET"
-                      " " AGENT "/control/user"
-                      " -u " CREDENTIALS))
-      (puts command)
-      (set results (NSString stringWithShellCommand:command))
-      (puts "apps: #{(results description)}"))
+      (set result (AgentHTTPClient performGet:(+ AGENT "/control/user")
+                              withCredentials:CREDENTIALS))
+      (puts "user: #{(result string)}"))
 
 (task "store" => "zip" is
       ;; look for the app on the store
-      (set path (+ AGENT "/q/api/apps"))
-      (set result (AgentHTTPClient performGet:path withCredentials:CREDENTIALS))
-      (set store_apps ((result propertyList) apps:))
-      (store_apps each:
-                  (do (APP)
-                      (puts (+ (APP _id:) " " (APP name:)))))
-      (puts (store_apps description))
-      
+      (set result (AgentHTTPClient performGet:(+ AGENT "/q/api/apps") withCredentials:CREDENTIALS))
+      (set store_apps ((result object) apps:))
+      (store_apps each:(do (APP) (puts (+ (APP _id:) " " (APP name:)))))
+      (puts "STORE APPS")
+      (puts (store_apps description))      
       (set app (store_apps find:(do (app) (eq (app name:) (APP name:)))))
       (if app
           (then (set appid (app _id:)))
@@ -177,21 +110,16 @@
                 (set result (AgentHTTPClient performPost:(+ AGENT "/q/api/apps")
                                               withObject:APP
                                              credentials:CREDENTIALS))
-                (puts "apps: #{(result UTF8String)}")
-                (set appid ((result propertyList) appid:))))
+                (puts "create result: #{(result string)}")
+                (set appid ((result object) appid:))))
       
       (puts "posting version for app #{appid}")
       (set result (AgentHTTPClient performPost:(+ AGENT "/q/api/apps/" appid)
                                       withData:(NSData dataWithContentsOfFile:(+ "build/" (APP name:) ".zip"))
                                    credentials:CREDENTIALS))
-      (set version ((result propertyList) version:))
-      (puts "uploaded version #{version}")
-      
+      (set version ((result object) version:))
+      (puts "uploaded version #{version}")      
       "ok")
-
-
-
-
 
 (task "default" => "zip")
 

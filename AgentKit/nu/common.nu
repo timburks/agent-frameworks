@@ -1,3 +1,41 @@
+(load "AgentHTTP")
+
+(class AgentHTTPClient
+ 
+ (+ certifyRequest:request withCredentials:credentials is
+    (set authorization (+ "Basic "
+                          ((credentials dataUsingEncoding:NSUTF8StringEncoding)
+                           agent_base64EncodedString)))
+    (request setValue:authorization forHTTPHeaderField:"Authorization"))
+ 
+ (+ performGet:path withCredentials:credentials is
+    (set request (NSMutableURLRequest requestWithURL:(NSURL URLWithString:path)))
+    (self certifyRequest:request withCredentials:credentials)
+    (AgentHTTPClient performRequest:request))
+ 
+ (+ performPost:path withData:data credentials:credentials is
+    (set request (NSMutableURLRequest requestWithURL:(NSURL URLWithString:path)))
+    (request setHTTPMethod:"POST")
+    (request setHTTPBody:data)
+    (request setValue:"application/plist" forHTTPHeaderField:"Content-Type")
+    (self certifyRequest:request withCredentials:credentials)
+    (AgentHTTPClient performRequest:request))
+ 
+ (+ performPost:path withObject:object credentials:credentials is
+    (puts "posting #{(object description)}")
+    (set request (NSMutableURLRequest requestWithURL:(NSURL URLWithString:path)))
+    (request setHTTPMethod:"POST")
+    (request setHTTPBody:(object XMLPropertyListRepresentation))
+    (request setValue:"application/plist" forHTTPHeaderField:"Content-Type")
+    (self certifyRequest:request withCredentials:credentials)
+    (AgentHTTPClient performRequest:request))
+ 
+ (+ performDelete:path withCredentials:credentials is
+    (set request (NSMutableURLRequest requestWithURL:(NSURL URLWithString:path)))
+    (request setHTTPMethod:"DELETE")
+    (self certifyRequest:request withCredentials:credentials)
+    (AgentHTTPClient performRequest:request)))
+
 (set PASSWORD_SALT "agent.io")
 
 (global &+ (NuMarkupOperator operatorWithTag:nil))
@@ -49,12 +87,14 @@
      (command appendString:"return false;")
      command)
 
+(set HOSTNAME (((NSString stringWithShellCommand:"hostname") componentsSeparatedByString:".") 0))
+
 (macro topbar-for-app (appname additional-items)
        `(progn (set mongo (AgentMongoDB new))
                (mongo connect)
-	       (set system-apps (mongo findArray:(dict system:1) inCollection:"control.apps"))
+               (set system-apps (mongo findArray:(dict system:1) inCollection:"control.apps"))
                (set available-apps (system-apps map:
-                                      (do (app) (dict name:(app name:) path:(+ "/" (app path:))))))
+                                                (do (app) (dict name:(app name:) path:(+ "/" (app path:))))))
                (set available-apps (available-apps sort))
                
                (set current-app (available-apps find:(do (app) (eq (app name:) ,appname))))
@@ -68,7 +108,7 @@
                            (&ul class:"title-area"
                                 (&li class:"divider")
                                 (&li class:"name"
-                                     (&h1 (&a href:"/home" "alpha")))
+                                     (&h1 (&a href:"/home" HOSTNAME)))
                                 (&li class:"divider")
                                 (&li class:"toggle-topbar menu-icon" (&a href:"#" "Menu")))
                            (&section class:"top-bar-section"

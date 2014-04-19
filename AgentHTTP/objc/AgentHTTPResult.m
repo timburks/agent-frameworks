@@ -11,11 +11,11 @@
 @implementation AgentHTTPResult
 @synthesize data, response, error;
 
-- (NSString *) UTF8String {
+- (NSString *) string {
     return [[NSString alloc] initWithData:self.data encoding:NSUTF8StringEncoding];
 }
 
-- (id) propertyList {
+- (id) object {
     return [NSPropertyListSerialization propertyListWithData:self.data
                                                      options:0
                                                       format:NULL

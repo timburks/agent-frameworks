@@ -19,10 +19,12 @@
 @property (nonatomic, assign) BOOL verbose;
 @property (nonatomic, strong) AgentHTTPService *service;
 
++ (void) run;
++ (void) runVerbosely;
+
 - (id)initWithService:(AgentHTTPService *) service;
 - (void) start;
 - (void) run;
-- (void) runVerbosely;
 - (void) addEventWithOperation:(NSOperation *) operation;
 
 @end

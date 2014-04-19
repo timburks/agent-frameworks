@@ -13,6 +13,7 @@
 @property (nonatomic, strong) NSURLResponse *response;
 @property (nonatomic, strong) NSError *error;
 
-- (NSString *) UTF8String;
-- (id) propertyList;
+- (NSString *) string;
+- (id) object;
+
 @end
