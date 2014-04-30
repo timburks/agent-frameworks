@@ -260,7 +260,7 @@ static void rad_response_helper(struct evhttp_request *req, AgentHTTPResponse *r
 
 // Support for custom events. Action handlers can use addEventWithOperation:
 // to schedule longer-running actions so that they can respond more quickly to requests.
-void cb_func(evutil_socket_t fd, short what, void *arg)
+static void cb_func(evutil_socket_t fd, short what, void *arg)
 {
    AgentLibEventHTTPServer *server = (__bridge AgentLibEventHTTPServer *) arg;
    NSOperation *operation = [server.operationQueue objectAtIndex:0];
