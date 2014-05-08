@@ -94,9 +94,7 @@
                (mongo connect)
                (set system-apps (mongo findArray:(dict $query:(dict system:1 hidden:(dict $ne:1)) $orderby:(dict name:1)) inCollection:"control.apps"))
                (set available-apps (system-apps map:
-                                                (do (app) (dict name:(app name:) path:(+ "/" (app path:))))))
-               (set available-apps (available-apps sort))
-               
+                                                (do (app) (dict name:(app name:) path:(+ "/" (app path:))))))               
                (set current-app (available-apps find:(do (app) (eq (app name:) ,appname))))
                
                (unless (defined screen_name) (set screen_name nil))
