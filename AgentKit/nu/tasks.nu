@@ -1,6 +1,7 @@
 (load "AgentJSON")
 (load "AgentHTTP")
 (load "AgentCrypto")
+(load "~/.agent.nu")
 
 (task "zip" is
       (SH "mkdir -p build/#{(APP name:)}.app")
